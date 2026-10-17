@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Attendance } from '../../../shared/types';
 import { getAttendance, addAttendance } from '../api';
 import { useUser } from '../context/UserContext';
+import AdminAttendance from './AdminAttendance';
 
 const getMonthString = (date: Date) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -31,7 +32,7 @@ export default function Clocking() {
   const calendarDates = getMonthCalendarDates(currentDate);
 
   useEffect(() => {
-    if (currentUser) loadAttendance();
+    if (currentUser?.role === 'artisan') loadAttendance();
   }, [currentDate, currentUser?.id]);
 
   const loadAttendance = async () => {
@@ -51,7 +52,7 @@ export default function Clocking() {
   };
 
   const toggleAttendance = async (userId: number, date: string) => {
-    if (userId !== currentUser?.id || !date.startsWith(monthStr)) return;
+    if (currentUser?.role !== 'artisan' || userId !== currentUser.id || !date.startsWith(monthStr)) return;
     const current = attendance.find((a) => a.userId === userId && a.date === date);
 
     try {
@@ -62,33 +63,40 @@ export default function Clocking() {
     }
   };
 
+  if (currentUser?.role === 'admin') return <AdminAttendance />;
+
   return (
     <div className="w-full">
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-6">
         <h2 className="text-2xl font-bold">Mon pointage</h2>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-[44px_1fr_44px] items-center gap-2 sm:flex">
           <button
             onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
-            className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+            aria-label="Mois précédent"
+            className="h-11 w-11 rounded bg-gray-200 text-xl font-semibold text-gray-700 hover:bg-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
           >
-            ← Mois précédent
+            ←
           </button>
-          <span className="order-first w-full sm:order-none sm:w-auto px-4 py-2 font-semibold text-center capitalize">{currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
+          <span className="px-1 text-center font-semibold capitalize sm:order-none sm:w-auto sm:px-4 sm:py-2">{currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
           <button
             onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
-            className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+            aria-label="Mois suivant"
+            className="h-11 w-11 rounded bg-gray-200 text-xl font-semibold text-gray-700 hover:bg-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
           >
-            Mois suivant →
+            →
           </button>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <div className="min-w-0">
+      <div>
           <div className="grid grid-cols-7 bg-gray-200">
-            {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map((day) => (
-              <div key={day} className="border border-gray-300 p-2 text-center text-sm font-semibold">
-                {day}
+            {[
+              ['Di', 'Dim'], ['Lu', 'Lun'], ['Ma', 'Mar'], ['Me', 'Mer'],
+              ['Je', 'Jeu'], ['Ve', 'Ven'], ['Sa', 'Sam'],
+            ].map(([shortDay, fullDay]) => (
+              <div key={fullDay} className="border border-gray-300 py-2 text-center text-xs font-semibold sm:p-2 sm:text-sm">
+                <span className="sm:hidden">{shortDay}</span>
+                <span className="hidden sm:inline">{fullDay}</span>
               </div>
             ))}
           </div>
@@ -101,37 +109,25 @@ export default function Clocking() {
                 (record) => record.userId === currentUser.id && record.date === dateKey && record.present
               ));
               return (
-                <div
+                <button
                   key={dateKey}
-                  onClick={() => canEdit && toggleAttendance(currentUser!.id, dateKey)}
-                  onKeyDown={(event) => {
-                    if (canEdit && (event.key === 'Enter' || event.key === ' ')) {
-                      event.preventDefault();
-                      toggleAttendance(currentUser!.id, dateKey);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={canEdit ? 0 : -1}
+                  type="button"
+                  disabled={!canEdit}
+                  onClick={() => currentUser && toggleAttendance(currentUser.id, dateKey)}
                   aria-pressed={isPresent}
                   aria-label={`Pointer votre présence le ${date.toLocaleDateString('fr-FR')}`}
-                  className={`aspect-square min-h-[58px] sm:min-h-[110px] border border-gray-300 p-1 sm:p-2 ${outsideMonth ? 'bg-gray-50 text-gray-400' : 'bg-white'} ${canEdit ? 'cursor-pointer hover:bg-blue-50' : 'cursor-default'}`}
+                  className={`flex min-h-12 w-full touch-manipulation flex-col items-center justify-center gap-1 border border-gray-300 py-1 text-sm transition-colors focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-600 sm:min-h-[110px] sm:items-stretch sm:justify-start sm:gap-2 sm:p-2 ${outsideMonth ? 'bg-gray-50 text-gray-400' : isPresent ? 'bg-green-100 text-green-900 hover:bg-green-200' : 'bg-white text-gray-800 hover:bg-blue-50'} ${canEdit ? 'cursor-pointer' : 'cursor-default'}`}
                 >
-                  <div className={`mb-2 text-right text-sm font-semibold ${dateKey === formatDate(new Date()) ? 'text-blue-600' : ''}`}>
+                  <span className={`font-semibold ${dateKey === formatDate(new Date()) ? 'flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white' : ''} sm:self-end`}>
                     {date.getDate()}
-                  </div>
-                  <div className="flex justify-center pt-4">
-                    <span
-                      aria-hidden="true"
-                      className={`flex h-6 w-6 items-center justify-center rounded border-2 text-sm font-bold sm:h-8 sm:w-8 sm:text-lg ${isPresent ? 'border-green-600 bg-green-500 text-white' : 'border-gray-300 bg-white text-transparent'}`}
-                    >
-                      ✓
-                    </span>
-                  </div>
-                </div>
+                  </span>
+                  <span className={`h-1.5 w-1.5 rounded-full sm:h-auto sm:w-auto sm:self-start sm:rounded-none sm:bg-transparent sm:text-xs sm:font-medium ${isPresent ? 'bg-green-600 sm:text-green-800' : 'bg-transparent sm:text-gray-400'}`}>
+                    <span className="hidden sm:inline">{isPresent ? 'Présent' : 'Absent'}</span>
+                  </span>
+                </button>
               );
             })}
           </div>
-        </div>
       </div>
     </div>
   );

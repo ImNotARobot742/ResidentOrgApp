@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -11,8 +12,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendPath = path.resolve(__dirname, '../../frontend/dist');
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: (origin, callback) => {
+    const localDevelopmentOrigin = process.env.NODE_ENV !== 'production' &&
+      /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin ?? '');
+    callback(null, !origin || origin === process.env.FRONTEND_ORIGIN || localDevelopmentOrigin);
+  },
+  credentials: true,
+}));
+app.use(express.json({ limit: '1mb' }));
 
 // Routes
 app.use('/api', routes);

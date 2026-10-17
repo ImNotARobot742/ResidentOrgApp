@@ -1,37 +1,48 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../../../shared/types';
+import { getCurrentUser, login as loginRequest, logout as logoutRequest, updateProfilePicture as updatePictureRequest } from '../api';
 
 interface UserContextType {
   currentUser: User | null;
-  setCurrentUser: (user: User | null) => void;
-  users: User[];
-  setUsers: (users: User[]) => void;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  updateProfilePicture: (picture: string | null) => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUserState] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem('currentUser');
-    if (saved) {
-      setCurrentUserState(JSON.parse(saved));
-    }
+    getCurrentUser()
+      .then((response) => setCurrentUserState(response.data))
+      .catch(() => setCurrentUserState(null))
+      .finally(() => setLoading(false));
   }, []);
 
-  const setCurrentUser = (user: User | null) => {
-    setCurrentUserState(user);
-    if (user) {
-      localStorage.setItem('currentUser', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('currentUser');
+  const login = async (email: string, password: string) => {
+    const response = await loginRequest(email, password);
+    setCurrentUserState(response.data);
+  };
+
+  const logout = async () => {
+    try {
+      await logoutRequest();
+    } finally {
+      setCurrentUserState(null);
     }
   };
 
+  const updateProfilePicture = async (picture: string | null) => {
+    const response = await updatePictureRequest(picture);
+    setCurrentUserState(response.data);
+  };
+
   return (
-    <UserContext.Provider value={{ currentUser, setCurrentUser, users, setUsers }}>
+    <UserContext.Provider value={{ currentUser, loading, login, logout, updateProfilePicture }}>
       {children}
     </UserContext.Provider>
   );

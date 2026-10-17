@@ -3,16 +3,40 @@
 export interface User {
   id: number;
   name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: 'admin' | 'artisan' | 'institut';
+  profilePicture: string | null;
   color: string;
 }
 
-export interface Presence {
+export type PlanningPeriod = 'morning' | 'afternoon';
+export type PlanningSpace = 'wood' | 'metal';
+
+export interface PlanningSlotSelection {
+  period: PlanningPeriod;
+  space: PlanningSpace;
+}
+
+export interface PlanningRegistration {
   id: number;
   userId: number;
-  date: string; // YYYY-MM-DD
-  status: 'present' | 'absent';
-  activity: 'woodworking' | 'soldering' | 'woodworking,soldering' | null;
+  userName: string;
+  color: string;
   note: string | null;
+  peopleCount: number;
+}
+
+export interface PlanningSlot {
+  wood: PlanningRegistration[];
+  metal: PlanningRegistration[];
+}
+
+export interface PlanningDay {
+  date: string;
+  morning: PlanningSlot;
+  afternoon: PlanningSlot;
 }
 
 export interface Attendance {
@@ -40,4 +64,11 @@ export interface AttendanceExport {
   name: string;
   daysPresentCount: number;
   presentDates: string[];
+}
+
+export interface ArtisanAttendanceSummary {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  fullDaysSpent: number;
 }
