@@ -1,12 +1,23 @@
 import sqlite3 from 'sqlite3';
+import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { hashPassword } from './passwords.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const dbPath = path.join(__dirname, '..', 'app.db');
 
 export const db = new sqlite3.Database(dbPath);
+
+type InitialAccount = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  role: 'admin' | 'artisan' | 'institut';
+  color?: string;
+};
 
 export const databaseReady = new Promise<void>((resolve, reject) => {
   db.once('error', reject);
@@ -105,19 +116,34 @@ async function initializeDatabase() {
       )
     `);
 
-  const demoAccounts = [
-    { firstName: 'Camille', lastName: 'Administrateur', email: 'admin@orgatelier.test', password: 'Admin123!', role: 'admin', color: '#2563EB' },
-    { firstName: 'Lina', lastName: 'Martin', email: 'artisan@orgatelier.test', password: 'Artisan123!', role: 'artisan', color: '#D97706' },
-    { firstName: 'Institut', lastName: 'Test', email: 'institut@orgatelier.test', password: 'Institut123!', role: 'institut', color: '#0F766E' },
-  ] as const;
-
-  for (const account of demoAccounts) {
-    const name = `${account.firstName} ${account.lastName}`;
-    await runAsync(
-      `INSERT OR IGNORE INTO users (name, firstName, lastName, email, passwordHash, role, color)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, account.firstName, account.lastName, account.email, await hashPassword(account.password), account.role, account.color]
-    );
+  const { count } = await getAsync('SELECT COUNT(*) AS count FROM users');
+  if (count === 0 && process.env.INITIAL_ACCOUNTS_JSON) {
+    const accounts = parseInitialAccounts(process.env.INITIAL_ACCOUNTS_JSON);
+    await runAsync('BEGIN IMMEDIATE');
+    try {
+      for (const account of accounts) {
+        const name = `${account.firstName} ${account.lastName}`;
+        await runAsync(
+          `INSERT INTO users (name, firstName, lastName, email, passwordHash, role, color)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            name,
+            account.firstName,
+            account.lastName,
+            account.email,
+            await hashPassword(account.password),
+            account.role,
+            account.color ?? (account.role === 'admin' ? '#2563EB' : account.role === 'artisan' ? '#D97706' : '#0F766E'),
+          ]
+        );
+      }
+      await runAsync('COMMIT');
+    } catch (error) {
+      await runAsync('ROLLBACK').catch(() => undefined);
+      throw error;
+    }
+  } else if (count === 0) {
+    console.warn('No users are configured. Set INITIAL_ACCOUNTS_JSON to bootstrap an empty database.');
   }
 
   await runAsync(`
@@ -127,6 +153,41 @@ async function initializeDatabase() {
     `);
   await runAsync("CREATE UNIQUE INDEX IF NOT EXISTS one_admin_account ON users(role) WHERE role = 'admin'");
   await runAsync('PRAGMA user_version = 1');
+}
+
+function parseInitialAccounts(value: string): InitialAccount[] {
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error('INITIAL_ACCOUNTS_JSON must be a non-empty JSON array.');
+  }
+
+  const accounts = parsed.map((entry): InitialAccount => {
+    if (!entry || typeof entry !== 'object') {
+      throw new Error('Each INITIAL_ACCOUNTS_JSON entry must be an object.');
+    }
+    const account = entry as Record<string, unknown>;
+    if (typeof account.firstName !== 'string' || !account.firstName.trim() ||
+        typeof account.lastName !== 'string' || !account.lastName.trim() ||
+        typeof account.email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account.email) ||
+        typeof account.password !== 'string' || !account.password ||
+        !['admin', 'artisan', 'institut'].includes(String(account.role)) ||
+        account.color !== undefined && (typeof account.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(account.color))) {
+      throw new Error('INITIAL_ACCOUNTS_JSON contains an invalid account.');
+    }
+    return {
+      firstName: account.firstName.trim(),
+      lastName: account.lastName.trim(),
+      email: account.email.trim().toLowerCase(),
+      password: account.password,
+      role: account.role as InitialAccount['role'],
+      color: account.color as string | undefined,
+    };
+  });
+
+  if (accounts.filter((account) => account.role === 'admin').length !== 1) {
+    throw new Error('INITIAL_ACCOUNTS_JSON must contain exactly one admin account.');
+  }
+  return accounts;
 }
 
 export function runAsync(sql: string, params: any[] = []): Promise<any> {

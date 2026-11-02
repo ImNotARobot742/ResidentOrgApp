@@ -169,7 +169,8 @@ router.post('/admin/users', requireRole('admin'), async (req: Request, res: Resp
     return;
   }
 
-  if (!process.env.SMTP_HOST || !process.env.SMTP_FROM || !process.env.APP_BASE_URL) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD ||
+      !process.env.SMTP_FROM || !process.env.APP_BASE_URL) {
     res.status(503).json({ error: 'L’envoi de courriels n’est pas configuré sur le serveur.' });
     return;
   }
@@ -206,7 +207,8 @@ router.post('/admin/users', requireRole('admin'), async (req: Request, res: Resp
 });
 
 router.post('/admin/users/:id/regenerate-password', requireRole('admin'), async (req: Request, res: Response) => {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_FROM || !process.env.APP_BASE_URL) {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD ||
+      !process.env.SMTP_FROM || !process.env.APP_BASE_URL) {
     res.status(503).json({ error: 'L’envoi de courriels n’est pas configuré sur le serveur.' });
     return;
   }

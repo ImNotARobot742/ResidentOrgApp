@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -6,9 +6,11 @@ import { fileURLToPath } from 'url';
 import routes from './routes.js';
 import { databaseReady, db } from './db.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
 const app = express();
 const PORT = process.env.PORT || 3001;
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendPath = path.resolve(__dirname, '../../frontend/dist');
 
 // Middleware

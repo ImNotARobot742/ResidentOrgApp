@@ -1,0 +1,22 @@
+
+node_modules
+**/node_modules
+
+dist
+**/dist
+
+.git
+.gitignore
+
+.env
+.env.*
+!.env.example
+
+coverage
+*.log
+.DS_Store
+
+# Never include the local database in the image
+backend/app.db
+backend/app.db-shm
+backend/app.db-wal

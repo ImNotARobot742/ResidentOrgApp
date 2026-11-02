@@ -34,6 +34,10 @@ npm install
 
 Copiez `.env.example` vers `.env`, puis renseignez les paramètres SMTP du fournisseur de courriel. Le fichier `.env` est ignoré par Git.
 
+Pour une adresse OVHcloud **MX Plan** (accessible via Roundcube), configurez `SMTP_HOST=ssl0.ovh.net`, `SMTP_PORT=587` et `SMTP_SECURE=false` (STARTTLS). Utilisez l'adresse email OVH complète pour `SMTP_USER` et le mot de passe de cette boîte mail pour `SMTP_PASSWORD`. `SMTP_FROM` doit utiliser cette même adresse. Roundcube est l'interface webmail ; son URL n'est pas le serveur SMTP. Ne mettez jamais votre mot de passe dans le dépôt Git.
+
+Les paramètres peuvent différer selon l'offre OVHcloud (par exemple Email Pro ou Hosted Exchange). Si vous n'avez pas une offre MX Plan ou si l'envoi échoue, vérifiez le nom du serveur SMTP sortant et les paramètres de sécurité dans l'espace client OVHcloud pour votre service.
+
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` configurent l'envoi des courriels.
 - `APP_BASE_URL` définit le domaine utilisé dans le lien de configuration du mot de passe.
 - `FRONTEND_ORIGIN` définit l'origine autorisée pour les requêtes avec session.
@@ -85,17 +89,9 @@ ResidentOrgApp/
 └── package.json             # Monorepo root
 ```
 
-## Comptes de démonstration
+## Comptes
 
-Les comptes de test sont créés au premier démarrage :
-
-| Type | Courriel | Mot de passe |
-| --- | --- | --- |
-| Admin | `admin@orgatelier.test` | `Admin123!` |
-| Artisan | `artisan@orgatelier.test` | `Artisan123!` |
-| Institut | `institut@orgatelier.test` | `Institut123!` |
-
-Les mots de passe sont hachés avec scrypt. Les sessions utilisent un cookie HttpOnly. Un seul compte admin existe; l’admin crée les comptes artisan et institut depuis l’onglet Comptes. Un compte ne peut pas être créé ou promu admin.
+Pour initialiser une nouvelle base vide, définissez temporairement `INITIAL_ACCOUNTS_JSON` dans l’environnement du serveur avec un tableau JSON contenant `firstName`, `lastName`, `email`, `password` et `role` (`admin`, `artisan` ou `institut`) pour chaque compte. Utilisez un gestionnaire de secrets ou les variables d’environnement de l’hébergeur; ne placez pas les mots de passe dans le dépôt. Après le premier démarrage réussi, retirez cette variable. Les comptes ne sont créés automatiquement que si la table des utilisateurs est vide.
 
 ## Points d'accès API
 
